@@ -8,12 +8,15 @@ import DatabaseModel from '../models/database.model';
 import { saveTable } from './table/saveTable';
 import { tables } from '../constants/tableName.constant';
 import { tableExists } from './table/checkTableExists';
+import { PoolConnection } from 'mysql2';
 
 const dataBaseModel = new DatabaseModel();
 
 let process: string[] = [];
 
 let cachedResults: any = null;
+
+let con: PoolConnection;
 
 const tollboth = {
     insertReport: async (
@@ -39,16 +42,6 @@ const tollboth = {
                 uuidv4(),
             );
 
-            // const keyFounds = Object.keys(keys.data).filter((key) =>
-            //     key.includes(`report:${car.dev_id}:${car.ref_id}`),
-            // );
-
-            // keyFounds.sort((a, b) => {
-            //     return Number(b.split(':')[3]) - Number(a.split(':')[3]);
-            // });
-
-            // const reportTime: number = Number(keyFounds?.[0]?.split(':')?.[3]);
-
             const recentReportKeys = Object.keys(keys.data).filter((key) =>
                 key.startsWith(`report:${car.dev_id}:${car.ref_id}`),
             );
@@ -58,11 +51,10 @@ const tollboth = {
             );
             const latestReportTime = Math.max(...reportTimes);
 
-            if (latestReportTime && Math.abs(tm - latestReportTime) < 300000)
+            if (latestReportTime && Math.abs(tm - latestReportTime) <= 300)
                 return;
 
-            const { conn: con } = await getConnection();
-            const tableName = await tollboth.getTableName(car.dev_id);
+            const tableName: any = await tollboth.getTableName(car.dev_id);
             const isExist = await tableExists(con, tableName);
             if (!isExist) {
                 await redisModel.hSet(
@@ -83,7 +75,7 @@ const tollboth = {
 
             if (reports.length > 0) {
                 const reportTime = reports[0].start_time;
-                if (Math.abs(tm - reportTime) < 300000) return;
+                if (reportTime && Math.abs(tm - reportTime) <= 300) return;
             }
             // ----------------------------
 
@@ -102,7 +94,11 @@ const tollboth = {
         }
     },
 
-    initData: () => {
+    initData: async () => {
+        const { conn } = await getConnection();
+
+        con = conn;
+
         if (!cachedResults) {
             console.time('Loading data');
 
@@ -142,15 +138,9 @@ const tollboth = {
                 );
 
                 if (keys.data && Object.keys(keys.data).length > 0) {
-                    const { conn: con } = await getConnection();
-
                     var queries: { [key: string]: string } = {};
 
-                    // let query = `INSERT INTO ${tables.tableReportToll} (imei, lat, lng, start_time, dri, tollboth_name, create_at) VALUES `;
-
                     for (const key of Object.keys(keys.data)) {
-                        // query += ${keys.data[key]},;
-
                         const imei = key.split(':')[1];
                         const tableName = await tollboth.getTableName(imei);
 
@@ -182,22 +172,6 @@ const tollboth = {
                         });
                     });
 
-                    // query = query.slice(0, -1);
-
-                    // con.query(query, async (err, result) => {
-                    //     if (err) {
-                    //         console.log(err);
-                    //     } else {
-                    //         Object.keys(keys.data).forEach(async (key) => {
-                    //             await redisModel.hDel(
-                    //                 'report',
-                    //                 key,
-                    //                 'tollboth.utils.ts',
-                    //                 uuidv4(),
-                    //             );
-                    //         });
-                    //     }
-                    // });
                     console.log(
                         `Đã gửi ${Object.keys(keys.data).length} báo cáo`,
                     );
@@ -289,26 +263,26 @@ const tollboth = {
     },
 
     getReportByImeiAndName: async (imei: string, name: string) => {
-        const { conn: con } = await getConnection();
+        try {
+            const tableName: any = await tollboth.getTableName(imei);
 
-        const tableName = await tollboth.getTableName(imei);
+            const result = await dataBaseModel.select(
+                con,
+                tableName,
+                '*',
+                'imei = ? AND tollboth_name = ?',
+                [imei, name],
+                'start_time',
+                'DESC',
+            );
 
-        const result = await dataBaseModel.select(
-            con,
-            tableName,
-            '*',
-            'imei = ? AND tollboth_name = ?',
-            [imei, name],
-            'start_time',
-            'DESC',
-        );
-
-        return result;
+            return result;
+        } catch (error) {
+            throw error;
+        }
     },
 
     getTableName: async (imei: string) => {
-        const { conn: con } = await getConnection();
-
         const result: any = await dataBaseModel.select(
             con,
             tables.tableDevice,
@@ -316,6 +290,8 @@ const tollboth = {
             'imei = ?',
             [imei],
         );
+
+        if (!result[0]?.id) throw new Error("Device doesn't exist");
 
         const tableName = await saveTable(con, result[0]?.id);
 

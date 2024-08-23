@@ -45,8 +45,10 @@ initMqtt();
 
 // init data
 import tollboth from './utils/tollboth.utils';
-tollboth.initData();
-tollboth.sendReport();
+(async () => {
+    await tollboth.initData();
+    tollboth.sendReport();
+})();
 
 // import routes
 import route from './routes';

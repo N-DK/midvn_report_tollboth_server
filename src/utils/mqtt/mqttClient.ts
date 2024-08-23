@@ -1,13 +1,13 @@
 import configureEnvironment from '../../config/dotenv.config';
 import { mylogger } from '../../logger';
 import tollboth from '../tollboth.utils';
-import { nameFeature } from './features/name.feature';
+import { tollbothFeature } from './features/tollboth.feature';
 import { v4 as uuidv4 } from 'uuid';
 
 const { TOPIC_STATUS_GPS } = configureEnvironment();
 
 const channel = {
-    [TOPIC_STATUS_GPS as string]: nameFeature,
+    [TOPIC_STATUS_GPS as string]: tollbothFeature,
 };
 
 const handleMessageMqtt = async (

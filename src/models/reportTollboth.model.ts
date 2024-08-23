@@ -27,7 +27,7 @@ class ReportModel extends DatabaseModel {
             }
         });
 
-        const totalPage = 0;
+        const totalPage = 1;
         const totalRecord = data[0].length;
 
         const results = data[0].map((item: any) => {
@@ -59,7 +59,7 @@ class ReportModel extends DatabaseModel {
                 rejects(error);
             }
         });
-        const totalPage = 0;
+        const totalPage = 1;
         const totalRecord = data[0].length;
         return { data: data[0], totalPage, totalRecord };
     }
