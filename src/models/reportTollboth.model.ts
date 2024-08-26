@@ -12,8 +12,7 @@ class ReportModel extends DatabaseModel {
         offset = parseInt(offset, 10) || 0;
         limit = parseInt(limit, 10) || 99999999;
 
-        // kiểm tra start_date và end_date có cùng tháng không
-        const start = new Date(start_date * 1000);
+                         const start = new Date(start_date * 1000);
         const end = new Date(end_date * 1000);
 
         const isSameMonth = start.getMonth() === end.getMonth();
